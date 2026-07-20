@@ -1,0 +1,2 @@
+/Users/bayka/AndroidStudioProjects/local/android/app/.cxx/RelWithDebInfo/1mo43i2v/x86/CMakeFiles/edit_cache.dir
+/Users/bayka/AndroidStudioProjects/local/android/app/.cxx/RelWithDebInfo/1mo43i2v/x86/CMakeFiles/rebuild_cache.dir

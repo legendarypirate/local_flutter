@@ -1,0 +1,1 @@
+/Users/bayka/AndroidStudioProjects/local/build/app/intermediates/cxx/RelWithDebInfo/1mo43i2v/obj/x86_64

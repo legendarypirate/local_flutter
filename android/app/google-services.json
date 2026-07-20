@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "241470794666",
+    "project_id": "dailyexpress-acb54",
+    "storage_bucket": "dailyexpress-acb54.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:241470794666:android:a56a3b8e4ae4d2410d19d3",
+        "android_client_info": {
+          "package_name": "com.masterdel.mongolia"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBN-Q1cgriwucQ5ZiK6deVL6MJPIyMurww"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:241470794666:android:ca52297fa0347b280d19d3",
+        "android_client_info": {
+          "package_name": "com.masterdel.mongolia"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBN-Q1cgriwucQ5ZiK6deVL6MJPIyMurww"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

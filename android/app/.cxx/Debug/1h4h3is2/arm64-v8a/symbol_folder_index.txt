@@ -1,0 +1,1 @@
+/Users/bayka/AndroidStudioProjects/local/build/app/intermediates/cxx/Debug/1h4h3is2/obj/arm64-v8a
