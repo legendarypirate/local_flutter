@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import '../utils/image_upload_utils.dart';
 import 'dart:convert';
 import '../app_text.dart';
 
@@ -84,10 +87,15 @@ class _GoodListScreenState extends State<GoodListScreen> {
     try {
       final picked = await _imagePicker.pickImage(
         source: source,
-        maxWidth: 1280,
-        imageQuality: 75,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
       );
       if (picked == null) return;
+
+      final uploadFile =
+          await ImageUploadUtils.compressForUpload(File(picked.path)) ??
+              File(picked.path);
 
       setState(() => _uploadingGoodId = goodId);
 
@@ -97,7 +105,7 @@ class _GoodListScreenState extends State<GoodListScreen> {
       );
       request.fields['merchant_user_id'] = _merchantId.toString();
       request.files.add(
-        await http.MultipartFile.fromPath('image', picked.path),
+        await http.MultipartFile.fromPath('image', uploadFile.path),
       );
 
       final response = await request.send().timeout(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sura_driver/deliverydriver/donedelivery.dart';
+import 'package:sura_driver/deliverydriver/unpaiddelivery.dart';
 import 'app_text.dart';
 
 import 'customer_driver/user.dart';
@@ -25,22 +26,32 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  late List<Widget> _widgetOptions;
+  int _doneRefresh = 0;
+  int _unpaidRefresh = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _widgetOptions = <Widget>[
-      DeliveryListScreen(),
-      Done(),
-      OrderScreen(),
-      SummaryScreen(),
-      UserDetailScreen(),
-    ];
+  Widget _pageForIndex(int index) {
+    switch (index) {
+      case 0:
+        return DeliveryListScreen();
+      case 1:
+        return Done(key: ValueKey('done-$_doneRefresh'));
+      case 2:
+        return UnpaidDone(key: ValueKey('unpaid-$_unpaidRefresh'));
+      case 3:
+        return OrderScreen();
+      case 4:
+        return SummaryScreen();
+      case 5:
+        return UserDetailScreen();
+      default:
+        return DeliveryListScreen();
+    }
   }
 
   void _onItemTapped(int index) {
     setState(() {
+      if (index == 1 && _selectedIndex != 1) _doneRefresh++;
+      if (index == 2 && _selectedIndex != 2) _unpaidRefresh++;
       _selectedIndex = index;
     });
   }
@@ -49,32 +60,38 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
+        child: _pageForIndex(_selectedIndex),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        items:  <BottomNavigationBarItem>[
+        type: BottomNavigationBarType.fixed,
+        items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.local_shipping), // Хүргэлт (Delivery)
+            icon: Icon(Icons.local_shipping),
             label: 'Хүргэлт',
             backgroundColor: Colors.white,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.check_box), // Хүргэлт (Delivery)
+            icon: Icon(Icons.check_box),
             label: 'Дууссан',
             backgroundColor: Colors.white,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long), // Захиалга (Order)
+            icon: Icon(Icons.payments_outlined),
+            label: 'Аваагүй',
+            backgroundColor: Colors.white,
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long),
             label: 'Захиалга',
             backgroundColor: Colors.white,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.info_outline), // Мэдээлэл (Info)
+            icon: Icon(Icons.info_outline),
             label: 'Тайлан',
             backgroundColor: Colors.white,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.man), // Мэдээлэл (Info)
+            icon: Icon(Icons.man),
             label: 'Мэдээлэл',
             backgroundColor: Colors.white,
           ),
@@ -82,9 +99,8 @@ class _MainScreenState extends State<MainScreen> {
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.grey,
-        selectedLabelStyle:
-            appText(fontSize: 12, fontWeight: FontWeight.w500),
-        unselectedLabelStyle: appText(fontSize: 11),
+        selectedLabelStyle: appText(fontSize: 11, fontWeight: FontWeight.w500),
+        unselectedLabelStyle: appText(fontSize: 10),
         onTap: _onItemTapped,
       ),
     );

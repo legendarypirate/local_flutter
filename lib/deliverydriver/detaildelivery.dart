@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../color/color.dart';
 import '../mainscreen.dart';
+import '../utils/image_upload_utils.dart';
 
 /// Text styles without [google_fonts] — avoids AssetManifest.json / runtime font bundle errors.
 TextStyle _tx({
@@ -83,11 +84,12 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     if (source == null) return null;
     final picked = await _imagePicker.pickImage(
       source: source,
-      maxWidth: 1280,
-      imageQuality: 70,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
     );
     if (picked == null) return null;
-    return File(picked.path);
+    return await ImageUploadUtils.compressForUpload(File(picked.path));
   }
 
   Future<bool> _submitComplete(int status, {String? driverComment, File? imageFile}) async {
@@ -100,10 +102,12 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
         request.fields['driver_comment'] = comment;
       }
       if (imageFile != null) {
+        final uploadFile =
+            await ImageUploadUtils.compressForUpload(imageFile) ?? imageFile;
         request.files.add(
           await http.MultipartFile.fromPath(
             'image',
-            imageFile.path,
+            uploadFile.path,
             filename: 'delivery_proof.jpg',
           ),
         );
@@ -115,7 +119,9 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
       );
       final res = await http.Response.fromStream(streamed);
       if (res.statusCode != 200) {
-        String err = 'Сервертэй холбогдож чадсангүй';
+        String err = res.statusCode == 413
+            ? 'Зураг хэт том байна. Дахин зураг авна уу.'
+            : 'Сервертэй холбогдож чадсангүй';
         try {
           final j = jsonDecode(res.body);
           if (j['message'] != null) err = j['message'].toString();

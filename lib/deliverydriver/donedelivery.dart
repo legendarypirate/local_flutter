@@ -1,6 +1,6 @@
 import 'dart:convert';
-import '../app_text.dart';
 
+import '../app_text.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,86 +9,8 @@ import 'package:http/http.dart' as http;
 
 import '../color/color.dart';
 import '../screen/login.dart';
-import 'createDelivery.dart';
 import 'dashboard.dart';
-
-class Delivery {
-  final int id;
-  final String phone;
-  String status;
-  final DateTime createdDate;
-  String comment;
-  String price;
-  final String address;
-  List<String> possibleStatuses;
-
-  bool isPaid;
-  bool isRural;
-
-  Delivery({
-    required this.id,
-    required this.phone,
-    required this.status,
-    required this.createdDate,
-    required this.price,
-    required this.comment,
-    required this.address,
-    this.possibleStatuses = const [
-      "Pending",
-      "Хуваарилсан",
-      "Delivered",
-      "Cancelled"
-    ],
-    this.isPaid = false,
-    this.isRural = false,
-  });
-
-  factory Delivery.fromJson(Map<String, dynamic> json) {
-    return Delivery(
-      id: json['id'],
-      phone: json['phone'],
-      status: _statusFromCode(json['status']),
-      createdDate: DateTime.parse(json['createdAt']),
-      comment: json['comment'] ?? '',
-      price: json['price'] ?? '',
-      address: json['address'],
-      isPaid: json['is_paid'] ?? false,
-      isRural: json['is_rural'] ?? false,
-    );
-  }
-
-  static String _statusFromCode(int statusCode) {
-    switch (statusCode) {
-      case 1:
-        return "Pending";
-      case 2:
-        return "Хуваарилсан";
-      case 3:
-        return "хүргэсэн";
-      case 4:
-        return "Cancelled";
-      default:
-        return "Буцаасан";
-    }
-  }
-
-  static int _codeFromStatus(String status) {
-    switch (status) {
-      case "Pending":
-        return 1;
-      case "Хуваарилсан":
-        return 2;
-      case "хүргэсэн":
-        return 3;
-      case "Cancelled":
-        return 4;
-      default:
-        return 0;
-    }
-  }
-
-  int get statusCode => _codeFromStatus(status);
-}
+import 'delivery_done_shared.dart';
 
 class Done extends StatefulWidget {
   const Done({Key? key}) : super(key: key);
@@ -98,7 +20,7 @@ class Done extends StatefulWidget {
 }
 
 class _DoneState extends State<Done> {
-  List<Delivery> deliveries = [];
+  List<DoneDelivery> deliveries = [];
   int? expandedIndex;
   bool isLoading = true;
 
@@ -113,77 +35,45 @@ class _DoneState extends State<Done> {
     'Cancelled',
   ];
 
-  // Load paid delivery IDs from SharedPreferences
-  Future<Set<int>> _loadPaidDeliveries() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> paidIds = prefs.getStringList('paid_deliveries') ?? [];
-    return paidIds.map((id) => int.parse(id)).toSet();
-  }
+  Future<void> _markDeliveredAsPaid(DoneDelivery delivery) async {
+    if (delivery.statusCode != 3) return;
+    if (delivery.isPaid) return;
 
-  // Save paid delivery IDs to SharedPreferences
-  Future<void> _savePaidDeliveries(Set<int> paidIds) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> paidIdsString = paidIds.map((id) => id.toString()).toList();
-    await prefs.setStringList('paid_deliveries', paidIdsString);
-  }
-
-  // Toggle paid status for a delivery
-  Future<void> _togglePaidStatus(int deliveryId, bool isCurrentlyPaid) async {
-    Set<int> paidDeliveries = await _loadPaidDeliveries();
-
-    if (isCurrentlyPaid) {
-      paidDeliveries.remove(deliveryId);
-    } else {
-      paidDeliveries.add(deliveryId);
+    final ok = await updateDeliveryIsPaid(delivery.id, true);
+    if (!ok) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Тооцоо тэмдэглэхэд алдаа гарлаа')),
+        );
+      }
+      return;
     }
 
-    await _savePaidDeliveries(paidDeliveries);
-
-    // Update local state
     setState(() {
-      final delivery = deliveries.firstWhere((d) => d.id == deliveryId);
-      delivery.isPaid = !isCurrentlyPaid;
+      delivery.isPaid = true;
     });
   }
 
-  /// Fetch deliveries. If [startDate] and [endDate] are provided, include them as
-  /// query parameters. Otherwise, backend defaults to the last 3 days.
   Future<void> fetchDeliveries({DateTime? startDate, DateTime? endDate}) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    int? userId = prefs.getInt('user_id');
+    setState(() => isLoading = true);
 
-    final DateFormat formatter = DateFormat('yyyy-MM-dd');
-    String query = '';
-    if (startDate != null && endDate != null) {
-      query =
-      '?startDate=${formatter.format(startDate)}&endDate=${formatter.format(endDate)}';
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('user_id');
+    if (userId == null) {
+      setState(() => isLoading = false);
+      return;
     }
 
-    final url = Uri.parse(
-        '${Url.url}/api/mobile/delivery/driver/$userId/status-3$query');
-    debugPrint('Fetching deliveries from: $url');
-
     try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
-        final List data = jsonResponse['data'];
-
-        // Load paid deliveries and update the list
-        final Set<int> paidDeliveries = await _loadPaidDeliveries();
-
-        setState(() {
-          deliveries = data.map((item) {
-            final delivery = Delivery.fromJson(item);
-            delivery.isPaid = paidDeliveries.contains(delivery.id);
-            return delivery;
-          }).toList();
-          isLoading = false;
-        });
-      } else {
-        debugPrint('Error: ${response.statusCode}');
-        setState(() => isLoading = false);
-      }
+      final data = await fetchDoneDeliveries(
+        userId: userId,
+        startDate: startDate,
+        endDate: endDate,
+      );
+      setState(() {
+        deliveries = data;
+        isLoading = false;
+      });
     } catch (e) {
       debugPrint('Failed to load deliveries: $e');
       setState(() => isLoading = false);
@@ -199,7 +89,7 @@ class _DoneState extends State<Done> {
       final response = await http.put(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'status': Delivery._codeFromStatus(newStatus)}),
+        body: jsonEncode({'status': DoneDelivery.codeFromStatus(newStatus)}),
       );
 
       if (response.statusCode == 200) {
@@ -212,21 +102,6 @@ class _DoneState extends State<Done> {
       }
     } catch (e) {
       debugPrint('Error updating status: $e');
-    }
-  }
-
-  Color statusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'хуваарилсан':
-        return Colors.blue;
-      case 'хүргэсэн':
-        return Colors.green;
-      case 'cancelled':
-        return Colors.red;
-      default:
-        return Colors.orange;
     }
   }
 
@@ -245,8 +120,7 @@ class _DoneState extends State<Done> {
       lastDate: DateTime(now.year + 1),
       initialDateRange: _startDate != null && _endDate != null
           ? DateTimeRange(start: _startDate!, end: _endDate!)
-          : DateTimeRange(
-          start: now.subtract(const Duration(days: 2)), end: now),
+          : DateTimeRange(start: now, end: now),
     );
 
     if (picked != null) {
@@ -260,7 +134,7 @@ class _DoneState extends State<Done> {
     }
   }
 
-  /// Clears the date filter, reverting to the backend default (last 3 days).
+  /// Clears the date filter, reverting to the backend default (today only).
   Future<void> _clearDateFilter() async {
     setState(() {
       _startDate = null;
@@ -400,7 +274,7 @@ class _DoneState extends State<Done> {
                     );
                   },
                   onDoubleTap: () {
-                    _togglePaidStatus(delivery.id, delivery.isPaid);
+                    _markDeliveredAsPaid(delivery);
                   },
                   child: Card(
                     elevation: 4,
@@ -428,7 +302,7 @@ class _DoneState extends State<Done> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: statusColor(delivery.status),
+                                    color: doneStatusColor(delivery.status),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(

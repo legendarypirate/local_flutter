@@ -8,11 +8,15 @@ import 'detaildelivery.dart'; // Make sure Url.url is defined here
 class Delstat extends StatefulWidget {
   final int driverId;
   final int status;
+  final String? statusTitle;
+  final int days;
 
   const Delstat({
     Key? key,
     required this.driverId,
     required this.status,
+    this.statusTitle,
+    this.days = 7,
   }) : super(key: key);
 
   @override
@@ -31,7 +35,7 @@ class _DelstatState extends State<Delstat> {
 
   Future<void> fetchDeliveries() async {
     final url = Uri.parse(
-      '${Url.url}/api/mobile/delivery/eachstatus/${widget.driverId}/${widget.status}',
+      '${Url.url}/api/mobile/delivery/eachstatus/${widget.driverId}/${widget.status}?days=${widget.days}',
     );
     print(url);
     try {
@@ -153,9 +157,20 @@ class _DelstatState extends State<Delstat> {
       appBar: AppBar(
         backgroundColor: Colors.deepOrange,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          'Статус: ${widget.status}',
-          style: appText(color: Colors.white, fontSize: 16),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.statusTitle ?? 'Статус: ${widget.status}',
+              style: appText(color: Colors.white, fontSize: 16),
+            ),
+            Text(
+              isLoading
+                  ? 'Сүүлийн ${widget.days} хоног'
+                  : 'Сүүлийн ${widget.days} хоног · ${deliveries.length} хүргэлт',
+              style: appText(color: Colors.white70, fontSize: 12),
+            ),
+          ],
         ),
       ),
       body: isLoading

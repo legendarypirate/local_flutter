@@ -105,6 +105,7 @@ class _GoodRequestBodyState extends State<GoodRequestBody> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _RequestFormSheetContent(
         merchantId: widget.merchantId,
@@ -268,6 +269,9 @@ class _RequestFormSheetContent extends StatefulWidget {
 
 class _RequestFormSheetContentState extends State<_RequestFormSheetContent> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
+  final _amountFocusNode = FocusNode();
+  final _nameFocusNode = FocusNode();
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   int _selectedType = 2;
@@ -276,7 +280,31 @@ class _RequestFormSheetContentState extends State<_RequestFormSheetContent> {
   bool _isSubmitting = false;
 
   @override
+  void initState() {
+    super.initState();
+    _amountFocusNode.addListener(_scrollFocusedFieldIntoView);
+    _nameFocusNode.addListener(_scrollFocusedFieldIntoView);
+  }
+
+  void _scrollFocusedFieldIntoView() {
+    if (!_amountFocusNode.hasFocus && !_nameFocusNode.hasFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  @override
   void dispose() {
+    _amountFocusNode.removeListener(_scrollFocusedFieldIntoView);
+    _nameFocusNode.removeListener(_scrollFocusedFieldIntoView);
+    _amountFocusNode.dispose();
+    _nameFocusNode.dispose();
+    _scrollController.dispose();
     _amountController.dispose();
     _nameController.dispose();
     super.dispose();
@@ -405,202 +433,251 @@ class _RequestFormSheetContentState extends State<_RequestFormSheetContent> {
     }
   }
 
+  InputDecoration _fieldDecoration(String hint, {String? suffix}) {
+    return InputDecoration(
+      hintText: hint,
+      suffixText: suffix,
+      filled: true,
+      fillColor: Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade400),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: AppColors.primaryColor, width: 1.5),
+      ),
+    );
+  }
+
+  Widget _buildDropdownShell({required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        border: Border.all(color: Colors.grey.shade400),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = AppColors.primaryColor;
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomSafe = MediaQuery.of(context).viewPadding.bottom;
+    final maxHeight = MediaQuery.of(context).size.height * 0.92;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewPadding.bottom + 16,
-        left: 20,
-        right: 20,
-        top: 12,
-      ),
-      child: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: Container(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Хүсэлт үүсгэх',
-                style: appText(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Төрөл, агуулах, бараа (эсвэл шинэ нэр), тоо',
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(height: 20),
-              Text('Хүсэлтийн төрөл',
-                  style: appText(
-                      fontWeight: FontWeight.w600, color: primary)),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _selectedType,
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(
-                          value: 1, child: Text('Шинэ бараа үүсгэх')),
-                      DropdownMenuItem(value: 2, child: Text('Нэмэх')),
-                      DropdownMenuItem(value: 3, child: Text('Хасах')),
-                    ],
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() {
-                        _selectedType = v;
-                        _selectedGoodId = null;
-                        _nameController.clear();
-                      });
-                    },
+                  const SizedBox(height: 16),
+                  Text(
+                    'Хүсэлт үүсгэх',
+                    style: appText(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Төрөл, агуулах, бараа (эсвэл шинэ нэр), тоо',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text('Агуулах',
-                  style: appText(
-                      fontWeight: FontWeight.w600, color: primary)),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _selectedWareId,
-                    isExpanded: true,
-                    hint: const Text('Агуулах сонгох'),
-                    items: [
-                      for (final ware in widget.wares)
-                        if (_jsonId(ware['id']) != null)
-                          DropdownMenuItem<int>(
-                            value: _jsonId(ware['id'])!,
-                            child: Text(ware['name']?.toString() ?? '—'),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Хүсэлтийн төрөл',
+                          style: appText(
+                              fontWeight: FontWeight.w600, color: primary)),
+                      const SizedBox(height: 8),
+                      _buildDropdownShell(
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: _selectedType,
+                            isExpanded: true,
+                            items: const [
+                              DropdownMenuItem(
+                                  value: 1, child: Text('Шинэ бараа үүсгэх')),
+                              DropdownMenuItem(value: 2, child: Text('Нэмэх')),
+                              DropdownMenuItem(value: 3, child: Text('Хасах')),
+                            ],
+                            onChanged: (v) {
+                              if (v == null) return;
+                              setState(() {
+                                _selectedType = v;
+                                _selectedGoodId = null;
+                                _nameController.clear();
+                              });
+                            },
                           ),
-                    ],
-                    onChanged: (v) {
-                      setState(() {
-                        _selectedWareId = v;
-                        _selectedGoodId = null;
-                      });
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_selectedType == 1) ...[
-                Text('Шинэ барааны нэр',
-                    style: appText(
-                        fontWeight: FontWeight.w600, color: primary)),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    hintText: 'Барааны нэр',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ] else ...[
-                Text('Бараа',
-                    style: appText(
-                        fontWeight: FontWeight.w600, color: primary)),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade400),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: _selectedGoodId,
-                      isExpanded: true,
-                      hint: const Text('Бараа сонгох'),
-                      items: [
-                        for (final good in _filteredGoods)
-                          if (_jsonId(good['id']) != null)
-                            DropdownMenuItem<int>(
-                              value: _jsonId(good['id'])!,
-                              child: Text(
-                                  '${good['name']} (${good['stock'] ?? 0})'),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text('Агуулах',
+                          style: appText(
+                              fontWeight: FontWeight.w600, color: primary)),
+                      const SizedBox(height: 8),
+                      _buildDropdownShell(
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: _selectedWareId,
+                            isExpanded: true,
+                            hint: const Text('Агуулах сонгох'),
+                            items: [
+                              for (final ware in widget.wares)
+                                if (_jsonId(ware['id']) != null)
+                                  DropdownMenuItem<int>(
+                                    value: _jsonId(ware['id'])!,
+                                    child: Text(ware['name']?.toString() ?? '—'),
+                                  ),
+                            ],
+                            onChanged: (v) {
+                              setState(() {
+                                _selectedWareId = v;
+                                _selectedGoodId = null;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_selectedType == 1) ...[
+                        Text('Шинэ барааны нэр',
+                            style: appText(
+                                fontWeight: FontWeight.w600, color: primary)),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _nameController,
+                          focusNode: _nameFocusNode,
+                          textInputAction: TextInputAction.next,
+                          onFieldSubmitted: (_) =>
+                              FocusScope.of(context).requestFocus(_amountFocusNode),
+                          decoration: _fieldDecoration('Барааны нэр'),
+                        ),
+                      ] else ...[
+                        Text('Бараа',
+                            style: appText(
+                                fontWeight: FontWeight.w600, color: primary)),
+                        const SizedBox(height: 8),
+                        _buildDropdownShell(
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<int>(
+                              value: _selectedGoodId,
+                              isExpanded: true,
+                              hint: const Text('Бараа сонгох'),
+                              items: [
+                                for (final good in _filteredGoods)
+                                  if (_jsonId(good['id']) != null)
+                                    DropdownMenuItem<int>(
+                                      value: _jsonId(good['id'])!,
+                                      child: Text(
+                                          '${good['name']} (${good['stock'] ?? 0})'),
+                                    ),
+                              ],
+                              onChanged: (_selectedWareId == null ||
+                                      _filteredGoods.isEmpty)
+                                  ? null
+                                  : (v) => setState(() => _selectedGoodId = v),
                             ),
+                          ),
+                        ),
+                        if (_selectedWareId != null && _filteredGoods.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              'Энэ агуулахад бараа байхгүй байна',
+                              style:
+                                  TextStyle(color: Colors.grey[600], fontSize: 12),
+                            ),
+                          ),
                       ],
-                      onChanged: (_selectedWareId == null ||
-                              _filteredGoods.isEmpty)
-                          ? null
-                          : (v) => setState(() => _selectedGoodId = v),
-                    ),
+                      const SizedBox(height: 16),
+                      Text('Тоо ширхэг',
+                          style: appText(
+                              fontWeight: FontWeight.w600, color: primary)),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _amountController,
+                        focusNode: _amountFocusNode,
+                        decoration: _fieldDecoration('Жишээ: 50', suffix: 'ш'),
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) {
+                          if (!_isSubmitting) _submit();
+                        },
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Тоо оруулна уу';
+                          if (int.tryParse(v) == null) return 'Тоо зөв оруулна уу';
+                          if (int.parse(v) <= 0) return '0-ээс их байх ёстой';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 80),
+                    ],
                   ),
                 ),
-                if (_selectedWareId != null && _filteredGoods.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      'Энэ агуулахад бараа байхгүй байна',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                  ),
-              ],
-              const SizedBox(height: 16),
-              Text('Тоо ширхэг',
-                  style: appText(
-                      fontWeight: FontWeight.w600, color: primary)),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _amountController,
-                decoration: InputDecoration(
-                  hintText: 'Тоо',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Тоо оруулна уу';
-                  if (int.tryParse(v) == null) return 'Тоо зөв оруулна уу';
-                  if (int.parse(v) <= 0) return '0-ээс их байх ёстой';
-                  return null;
-                },
               ),
-              const SizedBox(height: 24),
-              Row(
+            ),
+            Container(
+              padding: EdgeInsets.fromLTRB(20, 8, 20, bottomSafe + 16),
+              decoration: BoxDecoration(
+                color: theme.scaffoldBackgroundColor,
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
                       onPressed:
                           _isSubmitting ? null : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       child: const Text('Цуцлах'),
                     ),
                   ),
@@ -613,6 +690,9 @@ class _RequestFormSheetContentState extends State<_RequestFormSheetContent> {
                         backgroundColor: primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: _isSubmitting
                           ? const SizedBox(
@@ -628,8 +708,8 @@ class _RequestFormSheetContentState extends State<_RequestFormSheetContent> {
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

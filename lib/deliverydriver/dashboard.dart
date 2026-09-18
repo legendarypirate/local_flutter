@@ -43,7 +43,7 @@ class _DashboardState extends State<Dashboard> {
     if (userId == null) throw Exception('user_id not found in prefs');
 
     final url = Uri.parse(
-        '${Url.url}/api/mobile/delivery/reportdata?driver_id=$userId');
+        '${Url.url}/api/mobile/delivery/reportdata?driver_id=$userId&days=7');
 
     final res = await http.get(url);
 
@@ -124,6 +124,8 @@ class _DashboardState extends State<Dashboard> {
             builder: (_) => Delstat(
               driverId: driverId,
               status: status,
+              statusTitle: title,
+              days: 7,
             ),
           ),
         );
@@ -172,13 +174,22 @@ class _DashboardState extends State<Dashboard> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       appBar: AppBar(
-        title: Text(
-          'Хянах самбар',
-          style: appText(color: Colors.white, fontSize: 16),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Хянах самбар',
+              style: appText(color: Colors.white, fontSize: 16),
+            ),
+            Text(
+              'Сүүлийн 7 хоног',
+              style: appText(color: Colors.white70, fontSize: 12),
+            ),
+          ],
         ),
         backgroundColor: Colors.deepOrange,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white), // ← This makes back button white
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
